@@ -7,12 +7,32 @@ client ──(5555)──▶ server ──(5556)──▶ gui/dashboard.py ─�
        ◀─ replies ─┘
 ```
 
-## Build and run
+## Build
 
 ```bash
-python3 gui/dashboard.py   # terminal 1, then open http://127.0.0.1:8000
-make && ./server           # terminal 2
-./client [count] [ms]      # terminal 3, defaults: 100 messages, 200 ms apart
+make
+```
+
+## Run
+
+Use three terminals, started in this order.
+
+**Terminal 1: dashboard.** Start it, then open http://127.0.0.1:8000 in a browser.
+
+```bash
+python3 gui/dashboard.py
+```
+
+**Terminal 2: server.**
+
+```bash
+./server
+```
+
+**Terminal 3: client.** Both arguments are optional: the number of messages (default 100) and the delay between them in milliseconds (default 200).
+
+```bash
+./client
 ```
 
 The client sends a stream of synthetic readings labelled `temperature`, `pressure` and `humidity`. The server replies to each with the value doubled and `"doubled "` prefixed to the label, and forwards the same reply to the dashboard.
