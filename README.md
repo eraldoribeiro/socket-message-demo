@@ -2,15 +2,22 @@
 
 Two C processes, a client and a server, exchange messages over a TCP socket on `127.0.0.1:5555`. Each message holds a float value and a string label.
 
+```
+client ──(5555)──▶ server ──(5556)──▶ gui/dashboard.py ──(SSE, 8000)──▶ browser
+       ◀─ replies ─┘
+```
+
 ## Build and run
 
 ```bash
-make
-./server        # terminal 1
-./client        # terminal 2
+python3 gui/dashboard.py   # terminal 1, then open http://127.0.0.1:8000
+make && ./server           # terminal 2
+./client [count] [ms]      # terminal 3, defaults: 100 messages, 200 ms apart
 ```
 
-The client sends three messages. The server replies to each with the value doubled and `"doubled "` prefixed to the label.
+The client sends a stream of synthetic readings labelled `temperature`, `pressure` and `humidity`. The server replies to each with the value doubled and `"doubled "` prefixed to the label, and forwards the same reply to the dashboard.
+
+The dashboard is optional. The server tries to connect to it before each message and ignores it if it is not running, so it can be started or restarted at any time. It uses only the Python standard library; the page loads Chart.js from cdnjs.
 
 ## Wire format
 

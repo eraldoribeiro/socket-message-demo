@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #define MSG_LABEL_MAX 255
-#define DEMO_PORT 5555
+#define DEMO_PORT 5555   /* server <- client   */
+#define GUI_PORT  5556   /* server -> dashboard */
 
 typedef struct {
     float value;

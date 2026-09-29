@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Socket Demo Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #6b7280;
+    --border: #e3e6eb; --ok: #1a7f4b; --off: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171c; --card: #1d2128; --text: #e7e9ee; --muted: #9aa1ad;
+      --border: #2c313a; --ok: #4ade80; --off: #f87171;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+    font: 15px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1000px; margin: 0 auto; display: grid; gap: 16px; }
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  h1 { font-size: 20px; margin: 0; }
+  .status { font-size: 13px; font-weight: 600; }
+  .status::before { content: "●  "; }
+  .status.on { color: var(--ok); }
+  .status.off { color: var(--off); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card .k { color: var(--muted); font-size: 13px; }
+  .card .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; overflow-wrap: anywhere; }
+  .chart-box { position: relative; height: 320px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td.num { text-align: right; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Messages sent by the server</h1>
+    <span id="status" class="status off">C server not connected</span>
+  </header>
+
+  <section class="cards">
+    <div class="card"><div class="k">Messages received</div><div class="v" id="count">0</div></div>
+    <div class="card"><div class="k">Latest value</div><div class="v" id="latest-value">–</div></div>
+    <div class="card"><div class="k">Latest label</div><div class="v" id="latest-label">–</div></div>
+  </section>
+
+  <section class="card">
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </section>
+
+  <section class="card">
+    <table>
+      <thead><tr><th>#</th><th>Time</th><th>Label</th><th style="text-align:right">Value</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+const MAX_POINTS = 200;   // per label, on the chart
+const MAX_ROWS = 15;      // in the table
+const COLORS = ["#2563eb", "#d97706", "#059669", "#db2777", "#7c3aed", "#0891b2"];
+
+const css = getComputedStyle(document.documentElement);
+Chart.defaults.color = css.getPropertyValue("--muted").trim();
+Chart.defaults.borderColor = css.getPropertyValue("--border").trim();
+
+const chart = new Chart(document.getElementById("chart"), {
+  type: "line",
+  data: { datasets: [] },
+  options: {
+    animation: false,
+    maintainAspectRatio: false,
+    parsing: false,
+    elements: { point: { radius: 0 }, line: { borderWidth: 2 } },
+    scales: {
+      x: { type: "linear", title: { display: true, text: "message #" } },
+      y: { title: { display: true, text: "value" } },
+    },
+    plugins: { legend: { position: "bottom" } },
+  },
+});
+
+const datasets = new Map();   // label -> Chart.js dataset
+const recent = [];            // newest first, for the table
+let count = 0;
+
+function datasetFor(label) {
+  if (!datasets.has(label)) {
+    const color = COLORS[datasets.size % COLORS.length];
+    const ds = { label, data: [], borderColor: color, backgroundColor: color };
+    datasets.set(label, ds);
+    chart.data.datasets.push(ds);
+  }
+  return datasets.get(label);
+}
+
+function render() {
+  document.getElementById("count").textContent = count;
+  const tbody = document.getElementById("rows");
+  tbody.replaceChildren(...recent.map(m => {
+    const tr = document.createElement("tr");
+    const cells = [m.seq, new Date(m.t * 1000).toLocaleTimeString(), m.label, m.value.toFixed(3)];
+    cells.forEach((text, i) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      if (i === 3) td.className = "num";
+      tr.appendChild(td);
+    });
+    return tr;
+  }));
+  if (recent.length) {
+    document.getElementById("latest-value").textContent = recent[0].value.toFixed(3);
+    document.getElementById("latest-label").textContent = recent[0].label;
+  }
+  chart.update();
+}
+
+const events = new EventSource("/events");
+events.onmessage = (e) => {
+  const { connected, messages } = JSON.parse(e.data);
+
+  const status = document.getElementById("status");
+  status.className = "status " + (connected ? "on" : "off");
+  status.textContent = connected ? "C server connected" : "C server not connected";
+
+  for (const m of messages) {
+    const ds = datasetFor(m.label);
+    ds.data.push({ x: m.seq, y: m.value });
+    if (ds.data.length > MAX_POINTS) ds.data.shift();
+    recent.unshift(m);
+    count = m.seq;
+  }
+  recent.length = Math.min(recent.length, MAX_ROWS);
+  render();
+};
+events.onerror = () => {
+  const status = document.getElementById("status");
+  status.className = "status off";
+  status.textContent = "Dashboard offline (retrying)";
+};
+</script>
+</body>
+</html>
