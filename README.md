@@ -7,6 +7,10 @@ client ──(5555)──▶ server ──(5556)──▶ gui/dashboard.py ─�
        ◀─ replies ─┘
 ```
 
+![Dashboard showing the values sent by the server](docs/dashboard.png)
+
+*The dashboard after two client runs (100 messages, then 150). The jump at message 100 is where the second run starts its sine waves over.*
+
 ## Build
 
 ```bash
