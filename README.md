@@ -50,3 +50,7 @@ The dashboard is optional. The server tries to connect to it before each message
 | value | `uint32` | IEEE-754 bits of the float, network byte order |
 | len | `uint8` | label length (max 255) |
 | label | `char[len]` | no trailing NUL |
+
+## License
+
+MIT. See [LICENSE](LICENSE).
